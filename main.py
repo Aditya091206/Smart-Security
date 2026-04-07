@@ -10,7 +10,7 @@ from deepface import DeepFace
 # ==========================================
 # ⚙️ SYSTEM CONFIGURATION
 # ==========================================
-SOURCE = 0              # 0 is your webcam.
+SOURCE = 1              # 1 is your computer's camera (640x480 @ 30fps) ✓ TESTED
 MODEL_VERSION = 'yolov8m.pt'  # The default medium brain
 EVIDENCE_FOLDER = "evidence"
 LOG_FILE = "security_log.txt"
@@ -47,7 +47,7 @@ current_emotion = "scanning..."
 
 # Tracking settings
 MAX_MISSED_FRAMES = 15               # remove people not seen for this many frames
-EMOTION_UPDATE_INTERVAL = 1.5        # seconds between emotion updates for a track
+EMOTION_UPDATE_INTERVAL = 1        # seconds between emotion updates for a track
 
 # Anti-Flicker Filter for Weapons
 weapon_counter = 0
@@ -194,7 +194,7 @@ def update_tracks(person_boxes):
                 "has_weapon": False,
                 "weapon_names": [],
                 "current_emotion": "scanning...",
-                "emotion_history": collections.deque(maxlen=15),
+                "emotion_history": collections.deque(maxlen=7),
                 "last_emotion_time": 0,
                 "proximity": "far",
                 "matched": True,
@@ -261,6 +261,8 @@ def emotion_worker():
                 detected_emotion = "angry"
             elif emotion_scores['fear'] > 25.0:
                 detected_emotion = "fear"
+            elif emotion_scores['disgust'] > 20.0:
+                detected_emotion = "disgust"
             else:
                 detected_emotion = objs[0]['dominant_emotion']
 
@@ -295,8 +297,8 @@ t.daemon = True
 t.start()
 
 cap = cv2.VideoCapture(SOURCE)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
 print("System ARMED and Monitoring...")
 log_event("SYSTEM STARTED - MONITORING ACTIVE")
@@ -362,7 +364,8 @@ while True:
             else:
                 t['proximity'] = 'far'
 
-            if t.get('has_weapon') and (now - t.get('last_emotion_time', 0)) > EMOTION_UPDATE_INTERVAL:
+            is_close = t.get('proximity') == 'close'
+            if (t.get('has_weapon') or is_close) and (now - t.get('last_emotion_time', 0)) > EMOTION_UPDATE_INTERVAL:
                 crop = extract_face_crop(frame, t['bbox'])
                 if crop is not None:
                     face_crop_queue.append((tid, crop))
@@ -446,7 +449,7 @@ while True:
         cv2.putText(frame, item_name, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, weapon_box_color, 2)
 
     # Dashboard Banner
-    cv2.rectangle(frame, (0, 0), (640, 60), (0, 0, 0), -1)
+    cv2.rectangle(frame, (0, 0), (1280, 60), (0, 0, 0), -1)
     cv2.putText(frame, f"STATUS: {system_status}", (10, 40),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.8, status_color, 2)
 
